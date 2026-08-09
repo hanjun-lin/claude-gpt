@@ -1,0 +1,17 @@
+# Never commit credentials — these hold live OAuth tokens.
+auth.json
+.credentials.json
+*.token
+
+# Runtime output
+*.log
+proxy.log
+
+node_modules/
+
+# Windows / editor noise
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
+*.swp

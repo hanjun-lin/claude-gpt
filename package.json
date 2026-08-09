@@ -1,0 +1,24 @@
+{
+  "name": "claude-gpt",
+  "version": "1.0.0",
+  "description": "Run Claude Code against GPT models through a ChatGPT subscription, with live /model switching between Claude and GPT.",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "probe": "node tools/probe-models.js"
+  },
+  "keywords": [
+    "claude-code",
+    "codex",
+    "chatgpt",
+    "gpt-5",
+    "anthropic",
+    "proxy"
+  ],
+  "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {},
+  "private": true
+}
