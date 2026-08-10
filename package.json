@@ -1,6 +1,6 @@
 {
   "name": "claude-gpt",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Run Claude Code against GPT models through a ChatGPT subscription, with live /model switching between Claude and GPT.",
   "main": "src/server.js",
   "scripts": {
