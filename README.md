@@ -61,7 +61,7 @@ GPT requests are translated between the two API shapes — messages, system prom
 ## Install
 
 ```powershell
-git clone https://github.com/<you>/claude-gpt.git
+git clone https://github.com/hanjun-lin/claude-gpt.git
 cd claude-gpt
 .\install.ps1
 ```
