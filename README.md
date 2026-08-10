@@ -200,6 +200,7 @@ Get-Content ~\.claude\gpt-proxy\proxy.log -Wait
 | `Claude token refresh failed` | Run plain `claude` (not `claude-gpt`) once to re-authenticate. |
 | `claude-gpt` not found | Open a new terminal, or re-run `install.ps1`. |
 | Connectors warning on startup | Expected. `ANTHROPIC_AUTH_TOKEN` is set, so claude.ai connectors are disabled. Harmless. |
+| Connectors warning in a *plain* `claude` session | The token is persisted somewhere outside this project. `.\uninstall.ps1 -AuditOnly` names the file or variable; drop `-AuditOnly` to clear what it can. |
 
 More detail in [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md).
 
@@ -211,7 +212,77 @@ More detail in [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md).
 .\uninstall.ps1
 ```
 
-Removes the proxy, the launcher, and the PATH entry. Your `~/.codex` and `~/.claude` logins are left alone.
+Two jobs: it removes claude-gpt, and it clears the Anthropic auth sources that keep claude.ai connectors switched off.
+
+### 1. Removing claude-gpt
+
+Stops the running proxy, deletes `~\.claude\gpt-proxy` and the launcher in `~\.local\bin`, and takes that directory back off your user PATH.
+
+### 2. Clearing the auth sources
+
+While claude-gpt is running, Claude Code says:
+
+> claude.ai connectors are disabled because `ANTHROPIC_API_KEY` or another auth source is set and takes precedence over your claude.ai login
+
+That's expected — the launcher sets `ANTHROPIC_AUTH_TOKEN` so Claude Code talks to the proxy instead of Anthropic. It sets it **for one process only**, so it should disappear the moment you close that terminal. If the banner survives a brand-new terminal, the value is persisted somewhere, and Claude Code will go on preferring it over your claude.ai login.
+
+The uninstaller audits every place that can hold one:
+
+| Where it looks | What it does |
+|---|---|
+| `ANTHROPIC_*`, `CLAUDE_CODE_*` and `GPT_PROXY_*` in the Process, User and Machine environment | removes them — Machine scope needs an elevated shell |
+| `env` blocks and `apiKeyHelper` / `awsAuthRefresh` in `~\.claude\settings.json`, `settings.local.json`, and the same pair under `<project>\.claude\` | removes only those keys and leaves the rest of the file untouched |
+| `primaryApiKey` in `~\.claude.json` | cuts the key out |
+| `~\.claude\config.json`, `%LOCALAPPDATA%\ClaudeCode`, `%APPDATA%\ClaudeCode` — written by IDE extensions and model switchers like CC-Switch, not by Claude Code | deletes them |
+| `%PROGRAMDATA%\ClaudeCode\managed-settings.json` | reports it; strips it only with `-IncludeManagedSettings`, elevated |
+| PowerShell profiles and `<project>\.env` | **reports only, never edits** — those are yours, and the values are masked in the output |
+
+Then it repeats the audit and tells you what survived:
+
+```
+Auth sources currently visible to Claude Code...
+  [find] ANTHROPIC_AUTH_TOKEN is set in the Process environment
+  [find] env.ANTHROPIC_API_KEY in C:\Users\you\.claude\settings.json
+  [find] primaryApiKey in C:\Users\you\.claude.json
+  ...
+Re-checking...
+  [ok]   no auth source left -- claude.ai connectors will load again
+```
+
+Anything still listed after the second pass is being injected from outside Claude Code — an IDE AI extension, a model switcher, or machine policy. Close every IDE window and edit the files it names.
+
+**Nothing is changed without a backup.** Files are copied to `~\.claude\claude-gpt-uninstall-backup\<timestamp>\` before being rewritten, and any removed environment variables are written to a `restore-env.ps1` in that same folder. That restore script holds the live values — delete it once you're happy.
+
+### Flags
+
+| Flag | Effect |
+|---|---|
+| `-AuditOnly` | Report every auth source found and change nothing. Safe to run any time. |
+| `-ProjectDir <path>` | Which repo's `.claude\settings*.json` and `.env` to audit. Defaults to the current directory — point it at the repo where you actually see the banner. |
+| `-ResetClaudeLogin` | Also run `claude auth logout` and delete `~\.claude\.credentials.json`. The only step that touches your login, which is why it's opt-in. |
+| `-IncludeManagedSettings` | Also strip `%PROGRAMDATA%\ClaudeCode\managed-settings.json`. Needs an elevated shell, and IT policy may push it straight back. |
+| `-KeepEnv` / `-KeepPath` | Leave environment variables / PATH untouched. |
+| `-WhatIf` | Standard PowerShell dry run. |
+
+Your `~\.codex` login is never touched; your `~\.claude` login only with `-ResetClaudeLogin`.
+
+### Starting clean afterwards
+
+The uninstaller prints these at the end. Claude Code decides about connectors when a session starts, so a session you already have open won't change its mind.
+
+1. Close VS Code / Cursor / JetBrains, so their AI extensions can't re-inject `ANTHROPIC_*` into the terminals they spawn.
+2. Open a plain PowerShell window (`Win`+`R` → `powershell`):
+
+   ```powershell
+   $env:ANTHROPIC_API_KEY = $null
+   $env:ANTHROPIC_AUTH_TOKEN = $null
+   $env:ANTHROPIC_BASE_URL = $null
+   claude auth login
+   ```
+
+3. Confirm with `claude auth status`, then `/status` inside a session — your organization and its connectors should be back.
+
+> `/logout` and `/login` only work *inside* a session. From the command line it's `claude auth logout` / `claude auth login`.
 
 ---
 
